@@ -56,17 +56,6 @@ F 3 "" H 8900 4250 50  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L DCDC_convertor U3
-U 1 1 5831CFB3
-P 5450 2700
-F 0 "U3" H 5850 3100 60  0000 C CNN
-F 1 "DCDC_5V/5V" H 5300 3100 60  0000 C CNN
-F 2 "Socket_Strips:Socket_Strip_Straight_1x04" H 5450 2700 60  0001 C CNN
-F 3 "" H 5450 2700 60  0001 C CNN
-	1    5450 2700
-	1    0    0    -1  
-$EndComp
-$Comp
 L 4N25 U2
 U 1 1 5831D1B6
 P 5450 4350
@@ -91,13 +80,13 @@ $EndComp
 $Comp
 L R R3
 U 1 1 5831DE1F
-P 4650 3950
-F 0 "R3" V 4730 3950 50  0000 C CNN
-F 1 "220R" V 4650 3950 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805_HandSoldering" V 4580 3950 50  0001 C CNN
-F 3 "" H 4650 3950 50  0000 C CNN
-	1    4650 3950
-	1    0    0    1   
+P 4700 4450
+F 0 "R3" V 4780 4450 50  0000 C CNN
+F 1 "220R" V 4700 4450 50  0000 C CNN
+F 2 "Resistors_SMD:R_0805_HandSoldering" V 4630 4450 50  0001 C CNN
+F 3 "" H 4700 4450 50  0000 C CNN
+	1    4700 4450
+	0    -1   1    0   
 $EndComp
 $Comp
 L C C1
@@ -177,7 +166,7 @@ U 1 1 58322264
 P 1600 6600
 F 0 "P1" H 1800 6400 50  0000 C CNN
 F 1 "USB_A" H 1550 6800 50  0000 C CNN
-F 2 "Socket_Strips:Socket_Strip_Straight_1x06" V 1550 6500 50  0001 C CNN
+F 2 "Connect:USB_A" V 1550 6500 50  0001 C CNN
 F 3 "" V 1550 6500 50  0000 C CNN
 	1    1600 6600
 	0    -1   1    0   
@@ -225,8 +214,6 @@ Connection ~ 2100 6500
 Wire Wire Line
 	1900 5950 1900 6400
 Wire Wire Line
-	1150 6000 2100 6000
-Wire Wire Line
 	2100 6000 2100 6100
 Wire Wire Line
 	1150 2550 1150 6000
@@ -260,17 +247,6 @@ F 2 "Capacitors_SMD:C_0805_HandSoldering" H 1938 5650 50  0001 C CNN
 F 3 "" H 1900 5800 50  0000 C CNN
 	1    1900 5800
 	1    0    0    1   
-$EndComp
-$Comp
-L JUMPER JP1
-U 1 1 58335221
-P 7000 2100
-F 0 "JP1" H 7000 2250 50  0000 C CNN
-F 1 "JUMPER" H 7000 2020 50  0000 C CNN
-F 2 "Socket_Strips:Socket_Strip_Straight_1x03" H 7000 2100 50  0001 C CNN
-F 3 "" H 7000 2100 50  0000 C CNN
-	1    7000 2100
-	1    0    0    -1  
 $EndComp
 $Comp
 L D D1
@@ -323,9 +299,9 @@ Wire Wire Line
 Wire Wire Line
 	7150 2550 7200 2550
 Wire Wire Line
-	6100 2100 6700 2100
+	6100 2100 6850 2100
 Wire Wire Line
-	7300 2100 8900 2100
+	6950 2100 8900 2100
 Wire Wire Line
 	2000 3900 2000 3750
 Wire Wire Line
@@ -352,21 +328,10 @@ Wire Wire Line
 	4900 2850 1300 2850
 Wire Wire Line
 	1300 2850 1300 5600
-Wire Wire Line
-	1300 5600 3300 5600
 Connection ~ 3300 5600
 Connection ~ 1900 5600
 Wire Wire Line
 	1900 5650 1900 5600
-Wire Wire Line
-	4450 4450 5150 4450
-Wire Wire Line
-	4650 4250 4650 4100
-Wire Wire Line
-	4650 3800 4650 2550
-Connection ~ 4650 2550
-Wire Wire Line
-	4650 4250 5150 4250
 NoConn ~ 5750 4250
 Wire Wire Line
 	5750 4350 7750 4350
@@ -665,16 +630,12 @@ Connection ~ 1300 4350
 Connection ~ 1300 3750
 Connection ~ 8900 5400
 Connection ~ 10750 4350
-NoConn ~ 4450 3450
-NoConn ~ 4450 3550
-NoConn ~ 4450 3650
 NoConn ~ 4450 3750
 NoConn ~ 4450 3850
 NoConn ~ 4450 3950
 NoConn ~ 4450 4050
 NoConn ~ 4450 4150
 NoConn ~ 4450 4350
-NoConn ~ 4450 4750
 NoConn ~ 4450 4850
 NoConn ~ 4450 4950
 NoConn ~ 7750 4450
@@ -708,4 +669,55 @@ Text Notes 6950 6250 1    60   ~ 0
 sig
 Text Notes 7050 6300 1    60   ~ 0
 GND
+$Comp
+L DCDC_convertor U1
+U 1 1 5836E6F0
+P 5450 2700
+F 0 "U1" H 6000 3400 60  0000 C CNN
+F 1 "DCDC_convertor" H 5450 3400 60  0000 C CNN
+F 2 "Socket_Strips:Socket_Strip_Straight_1x04" H 5450 2700 60  0001 C CNN
+F 3 "" H 5450 2700 60  0001 C CNN
+	1    5450 2700
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1150 6000 1900 6000
+Wire Wire Line
+	2100 6000 4600 6000
+Wire Wire Line
+	4600 6000 4600 4750
+Wire Wire Line
+	4600 4750 4450 4750
+Wire Wire Line
+	4450 4450 4550 4450
+Wire Wire Line
+	4850 4450 4850 4250
+Wire Wire Line
+	4850 4250 5150 4250
+Wire Wire Line
+	5050 4450 5150 4450
+Wire Wire Line
+	5050 3450 5050 4450
+NoConn ~ 4450 3650
+NoConn ~ 4450 3550
+Wire Wire Line
+	4450 3450 5050 3450
+$Comp
+L CONN_01X03 P3
+U 1 1 58370475
+P 6950 1800
+F 0 "P3" H 6950 2000 50  0000 C CNN
+F 1 "CONN_01X03" V 7050 1800 50  0000 C CNN
+F 2 "Socket_Strips:Socket_Strip_Straight_1x03" H 6950 1800 50  0001 C CNN
+F 3 "" H 6950 1800 50  0000 C CNN
+	1    6950 1800
+	0    1    -1   0   
+$EndComp
+Wire Wire Line
+	6850 2100 6850 2000
+Wire Wire Line
+	6950 2100 6950 2000
+Wire Wire Line
+	7050 2000 7050 2100
+Connection ~ 7050 2100
 $EndSCHEMATC
