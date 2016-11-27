@@ -720,4 +720,19 @@ Wire Wire Line
 Wire Wire Line
 	7050 2000 7050 2100
 Connection ~ 7050 2100
+Wire Wire Line
+	1300 5600 3300 5600
+$Comp
+L C C8
+U 1 1 58370690
+P 4600 2700
+F 0 "C8" H 4625 2800 50  0000 L CNN
+F 1 "10u" H 4625 2600 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805_HandSoldering" H 4638 2550 50  0001 C CNN
+F 3 "" H 4600 2700 50  0000 C CNN
+	1    4600 2700
+	-1   0    0    -1  
+$EndComp
+Connection ~ 4600 2550
+Connection ~ 4600 2850
 $EndSCHEMATC

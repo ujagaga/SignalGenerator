@@ -690,18 +690,8 @@ Wire Wire Line
 	4600 4750 4450 4750
 Wire Wire Line
 	4450 4450 4550 4450
-Wire Wire Line
-	4850 4450 4850 4250
-Wire Wire Line
-	4850 4250 5150 4250
-Wire Wire Line
-	5050 4450 5150 4450
-Wire Wire Line
-	5050 3450 5050 4450
 NoConn ~ 4450 3650
 NoConn ~ 4450 3550
-Wire Wire Line
-	4450 3450 5050 3450
 $Comp
 L CONN_01X03 P3
 U 1 1 58370475
@@ -735,4 +725,14 @@ F 3 "" H 4600 2700 50  0000 C CNN
 $EndComp
 Connection ~ 4600 2550
 Connection ~ 4600 2850
+Wire Wire Line
+	5050 3100 5050 4250
+Wire Wire Line
+	5050 4250 5150 4250
+Wire Wire Line
+	4850 4450 5150 4450
+Wire Wire Line
+	5050 3100 3300 3100
+Connection ~ 3300 3100
+NoConn ~ 4450 3450
 $EndSCHEMATC
