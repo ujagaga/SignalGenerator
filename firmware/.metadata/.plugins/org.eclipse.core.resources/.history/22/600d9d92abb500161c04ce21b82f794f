@@ -194,8 +194,8 @@ uchar usbFunctionWrite( uchar *data, uchar len )
 #define    TX_MASK        (TX_SIZE-1)
 #define    RX_SIZE        (HW_CDC_BULK_IN_SIZE)
 
-static uchar    iwptr;
-static uchar    to_host_buf[RX_SIZE];
+static uchar    iwptr, uwptr, irptr;
+static uchar    to_host_buf[RX_SIZE], to_device_buf[TX_SIZE];
 
 enum{
 	CMD_SET_PAUSE = 0,
@@ -206,7 +206,7 @@ enum{
 void usbFunctionWriteOut( uchar *data, uchar len )
 {
 	if(len > 2){
-		uint8_t command = data[2];
+		static const uint8_t command = data[2];
 
 		if((data[0] != 0xFF) || (data[1] != 0xFE) || (command > 2)){
 			/* ERROR! */
@@ -232,12 +232,10 @@ void usbFunctionWriteOut( uchar *data, uchar len )
 
 		while(cmd_len > 0){
 			waitTxReady();
-			UDR = *data;
+			UDR = msg;
 			cmd_len--;
-			data++;
+			msg++;
 		}
-
-		usbEnableAllRequests();
 	}
 }
 
@@ -267,6 +265,8 @@ uchar		j;
 
 int main(void)
 {
+	uchar command = 0;
+
     hardwareInit();
     usbInit();
 
@@ -275,7 +275,17 @@ int main(void)
         wdt_reset();
         usbPoll();
 
+        /*    host => device    */
+        if( (UCSRA&(1<<UDRE)) && (uwptr!=irptr)) {
 
+            UDR		= to_device_buf[irptr++];
+            irptr   &= TX_MASK;
+        }
+
+
+        if( usbAllRequestsAreDisabled() && ((uwptr-irptr)&TX_MASK)<(TX_SIZE-HW_CDC_BULK_OUT_SIZE) ) {
+            usbEnableAllRequests();
+        }
 
         /*    device => host     */
         if( (UCSRA & (1<<RXC)) && (iwptr < HW_CDC_BULK_IN_SIZE) ) {

@@ -195,7 +195,7 @@ uchar usbFunctionWrite( uchar *data, uchar len )
 #define    RX_SIZE        (HW_CDC_BULK_IN_SIZE)
 
 static uchar    iwptr;
-static uchar    to_host_buf[RX_SIZE];
+static uchar    to_host_buf[RX_SIZE], to_device_buf[TX_SIZE];
 
 enum{
 	CMD_SET_PAUSE = 0,

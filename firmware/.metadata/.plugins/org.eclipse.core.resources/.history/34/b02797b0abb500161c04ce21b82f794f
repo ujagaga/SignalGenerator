@@ -194,8 +194,8 @@ uchar usbFunctionWrite( uchar *data, uchar len )
 #define    TX_MASK        (TX_SIZE-1)
 #define    RX_SIZE        (HW_CDC_BULK_IN_SIZE)
 
-static uchar    iwptr;
-static uchar    to_host_buf[RX_SIZE];
+static uchar    iwptr, uwptr, irptr;
+static uchar    to_host_buf[RX_SIZE], to_device_buf[TX_SIZE];
 
 enum{
 	CMD_SET_PAUSE = 0,
@@ -267,6 +267,8 @@ uchar		j;
 
 int main(void)
 {
+	uchar command = 0;
+
     hardwareInit();
     usbInit();
 

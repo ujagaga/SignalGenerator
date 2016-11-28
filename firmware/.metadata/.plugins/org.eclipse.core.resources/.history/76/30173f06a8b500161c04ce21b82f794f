@@ -15,8 +15,7 @@
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 #include <avr/wdt.h>
-#include <stdint.h>
-#include <stdbool.h>
+
 #include "usbdrv/usbdrv.h"
 
 
@@ -24,7 +23,6 @@
 #define HW_CDC_BULK_IN_SIZE      8
 #define USART_BAUDRATE 	(9600)
 #define BAUD_PRESCALE 	(((( F_CPU / 16) + ( USART_BAUDRATE / 2) ) / ( USART_BAUDRATE ) ) - 1)
-#define waitTxReady()	while (( UCSRA & (1 << UDRE ) ) == 0)
 
 enum {
     SEND_ENCAPSULATED_COMMAND = 0,
@@ -189,56 +187,24 @@ uchar usbFunctionWrite( uchar *data, uchar len )
 /* usbFunctionWriteOut					                                     */
 /*---------------------------------------------------------------------------*/
 
-
 #define    TX_SIZE        (HW_CDC_BULK_OUT_SIZE<<1)
 #define    TX_MASK        (TX_SIZE-1)
 #define    RX_SIZE        (HW_CDC_BULK_IN_SIZE)
 
-static uchar    iwptr;
-static uchar    to_host_buf[RX_SIZE];
-
-enum{
-	CMD_SET_PAUSE = 0,
-	CMD_SET_PULSE = 1,
-	CMD_STORE = 2 		/* Save in EEPROM */
-};
+static uchar    iwptr, uwptr, irptr;
+static uchar    to_host_buf[RX_SIZE], to_device_buf[TX_SIZE];
 
 void usbFunctionWriteOut( uchar *data, uchar len )
 {
-	if(len > 2){
-		uint8_t command = data[2];
 
-		if((data[0] != 0xFF) || (data[1] != 0xFE) || (command > 2)){
-			/* ERROR! */
-			return;
-		}
+    /*  usb -> rs232c:  transmit char    */
+    for( ; len; len-- ) {
+        to_device_buf[uwptr++] = *data++;
+        uwptr	&= TX_MASK;
+    }
 
-		uint8_t cmd_len = 5;
-
-		if(command == CMD_STORE){
-			cmd_len = 1;
-		}else{
-			if(len < 7){
-				/* ERROR! */
-				return;
-			}
-		}
-
-		/*  postpone receiving next data    */
-		usbDisableAllRequests();
-
-		data++;
-		data++;
-
-		while(cmd_len > 0){
-			waitTxReady();
-			UDR = *data;
-			cmd_len--;
-			data++;
-		}
-
-		usbEnableAllRequests();
-	}
+    /*  postpone receiving next data    */
+   	usbDisableAllRequests();
 }
 
 
@@ -267,6 +233,8 @@ uchar		j;
 
 int main(void)
 {
+	uchar command = 0;
+
     hardwareInit();
     usbInit();
 
@@ -275,7 +243,24 @@ int main(void)
         wdt_reset();
         usbPoll();
 
+        /*    host => device    */
+//		if( uwptr != irptr ){
+//			if(command == 0)
+//
+//		}
 
+
+        /*    host => device    */
+        if( (UCSRA&(1<<UDRE)) && (uwptr!=irptr)) {
+
+            UDR		= to_device_buf[irptr++];
+            irptr   &= TX_MASK;
+        }
+
+
+        if( usbAllRequestsAreDisabled() && ((uwptr-irptr)&TX_MASK)<(TX_SIZE-HW_CDC_BULK_OUT_SIZE) ) {
+            usbEnableAllRequests();
+        }
 
         /*    device => host     */
         if( (UCSRA & (1<<RXC)) && (iwptr < HW_CDC_BULK_IN_SIZE) ) {

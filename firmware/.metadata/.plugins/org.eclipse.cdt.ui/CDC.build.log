@@ -1,13 +1,13 @@
-16:31:48 **** Incremental Build of configuration Release for project CDC ****
+21:46:24 **** Incremental Build of configuration Release for project CDC ****
 make all 
 Building file: ../main.c
 Invoking: AVR Compiler
 avr-gcc -Wall -Os -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=attiny2313 -DF_CPU=12000000UL -MMD -MP -MF"main.d" -MT"main.o" -c -o "main.o" "../main.c"
 ../main.c: In function ‘usbFunctionDescriptor’:
-../main.c:130:19: warning: assignment makes integer from pointer without a cast
+../main.c:132:19: warning: assignment makes integer from pointer without a cast
          usbMsgPtr = (uchar *)usbDescriptorDevice;
                    ^
-../main.c:133:19: warning: assignment makes integer from pointer without a cast
+../main.c:135:19: warning: assignment makes integer from pointer without a cast
          usbMsgPtr = (uchar *)configDescrCDC;
                    ^
 Finished building: ../main.c
@@ -35,15 +35,15 @@ AVR Memory Usage
 ----------------
 Device: attiny2313
 
-Program:    1996 bytes (97.5% Full)
+Program:    1938 bytes (94.6% Full)
 (.text + .data + .bootloader)
 
-Data:        104 bytes (81.2% Full)
+Data:         86 bytes (67.2% Full)
 (.data + .bss + .noinit)
 
 
 Finished building: sizedummy
  
 
-16:31:48 Build Finished (took 145ms)
+21:46:25 Build Finished (took 214ms)
 
