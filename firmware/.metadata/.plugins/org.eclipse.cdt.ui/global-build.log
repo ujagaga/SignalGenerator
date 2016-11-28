@@ -1,0 +1,92 @@
+16:29:29 **** Incremental Build of configuration Release for project CDC ****
+make all 
+Building file: ../main.c
+Invoking: AVR Compiler
+avr-gcc -Wall -Os -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=attiny2313 -DF_CPU=12000000UL -MMD -MP -MF"main.d" -MT"main.o" -c -o "main.o" "../main.c"
+../main.c: In function ‘usbFunctionDescriptor’:
+../main.c:130:19: warning: assignment makes integer from pointer without a cast
+         usbMsgPtr = (uchar *)usbDescriptorDevice;
+                   ^
+../main.c:133:19: warning: assignment makes integer from pointer without a cast
+         usbMsgPtr = (uchar *)configDescrCDC;
+                   ^
+Finished building: ../main.c
+ 
+Building target: CDC.elf
+Invoking: AVR C Linker
+avr-gcc -Wl,-Map,CDC.map -mmcu=attiny2313 -o "CDC.elf"  ./usbdrv/oddebug.o ./usbdrv/usbdrv.o ./usbdrv/usbdrvasm.o  ./main.o   
+Finished building target: CDC.elf
+ 
+Invoking: AVR Create Extended Listing
+avr-objdump -h -S CDC.elf  >"CDC.lss"
+Finished building: CDC.lss
+ 
+Create Flash image (ihex format)
+avr-objcopy -R .eeprom -R .fuse -R .lock -R .signature -O ihex CDC.elf  "CDC.hex"
+Finished building: CDC.hex
+ 
+Create eeprom image (ihex format)
+avr-objcopy -j .eeprom --no-change-warnings --change-section-lma .eeprom=0 -O ihex CDC.elf  "CDC.eep"
+Finished building: CDC.eep
+ 
+Invoking: Print Size
+avr-size --format=avr --mcu=attiny2313 CDC.elf
+AVR Memory Usage
+----------------
+Device: attiny2313
+
+Program:    1996 bytes (97.5% Full)
+(.text + .data + .bootloader)
+
+Data:        104 bytes (81.2% Full)
+(.data + .bss + .noinit)
+
+
+Finished building: sizedummy
+ 
+16:31:48 **** Incremental Build of configuration Release for project CDC ****
+make all 
+Building file: ../main.c
+Invoking: AVR Compiler
+avr-gcc -Wall -Os -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=attiny2313 -DF_CPU=12000000UL -MMD -MP -MF"main.d" -MT"main.o" -c -o "main.o" "../main.c"
+../main.c: In function ‘usbFunctionDescriptor’:
+../main.c:130:19: warning: assignment makes integer from pointer without a cast
+         usbMsgPtr = (uchar *)usbDescriptorDevice;
+                   ^
+../main.c:133:19: warning: assignment makes integer from pointer without a cast
+         usbMsgPtr = (uchar *)configDescrCDC;
+                   ^
+Finished building: ../main.c
+ 
+Building target: CDC.elf
+Invoking: AVR C Linker
+avr-gcc -Wl,-Map,CDC.map -mmcu=attiny2313 -o "CDC.elf"  ./usbdrv/oddebug.o ./usbdrv/usbdrv.o ./usbdrv/usbdrvasm.o  ./main.o   
+Finished building target: CDC.elf
+ 
+Invoking: AVR Create Extended Listing
+avr-objdump -h -S CDC.elf  >"CDC.lss"
+Finished building: CDC.lss
+ 
+Create Flash image (ihex format)
+avr-objcopy -R .eeprom -R .fuse -R .lock -R .signature -O ihex CDC.elf  "CDC.hex"
+Finished building: CDC.hex
+ 
+Create eeprom image (ihex format)
+avr-objcopy -j .eeprom --no-change-warnings --change-section-lma .eeprom=0 -O ihex CDC.elf  "CDC.eep"
+Finished building: CDC.eep
+ 
+Invoking: Print Size
+avr-size --format=avr --mcu=attiny2313 CDC.elf
+AVR Memory Usage
+----------------
+Device: attiny2313
+
+Program:    1996 bytes (97.5% Full)
+(.text + .data + .bootloader)
+
+Data:        104 bytes (81.2% Full)
+(.data + .bss + .noinit)
+
+
+Finished building: sizedummy
+ 
