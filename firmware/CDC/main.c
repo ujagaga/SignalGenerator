@@ -17,11 +17,13 @@
 #include <avr/wdt.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <avr/eeprom.h>
 #include "usbdrv/usbdrv.h"
 
 
 #define HW_CDC_BULK_OUT_SIZE     8
 #define HW_CDC_BULK_IN_SIZE      8
+#define TX_SIZE        			(HW_CDC_BULK_OUT_SIZE)
 #define USART_BAUDRATE 	(9600)
 #define BAUD_PRESCALE 	(((( F_CPU / 16) + ( USART_BAUDRATE / 2) ) / ( USART_BAUDRATE ) ) - 1)
 #define waitTxReady()	while (( UCSRA & (1 << UDRE ) ) == 0)
@@ -38,6 +40,18 @@ enum {
     SEND_BREAK
 };
 
+enum{
+	CMD_SET_PAUSE = 0,
+	CMD_SET_PULSE = 1,
+	CMD_STORE = 2 		/* Save in EEPROM */
+};
+
+
+
+static uint8_t help_msg_buf[TX_SIZE];
+static uint8_t help_msg_len;
+static uint8_t txMsg;
+static uint8_t txReadyFlag = 0;
 
 const PROGMEM char configDescrCDC[] = {   /* USB configuration descriptor */
     9,          /* sizeof(usbDescrConfig): length of descriptor in bytes */
@@ -124,6 +138,10 @@ const PROGMEM char configDescrCDC[] = {   /* USB configuration descriptor */
     0,           /* in ms */
 };
 
+const uint8_t EEMEM helpResponse[] = "help\tthis dialog\n"
+		"FE, FF, 00, <4 byte value>\tpause ms\n"
+		"FE, FF, 01, <4 byte value>\tpulse ms\n"
+		"FE, FF, 02\tstores current settings";
 
 uchar usbFunctionDescriptor(usbRequest_t *rq)
 {
@@ -141,7 +159,6 @@ uchar usbFunctionDescriptor(usbRequest_t *rq)
 /* ----------------------------- USB interface ----------------------------- */
 /* ------------------------------------------------------------------------- */
 
-static uchar    sendEmptyFrame;
 static uchar    modeBuffer[7];
 
 uchar usbFunctionSetup(uchar data[8])
@@ -190,54 +207,44 @@ uchar usbFunctionWrite( uchar *data, uchar len )
 /*---------------------------------------------------------------------------*/
 
 
-#define    TX_SIZE        (HW_CDC_BULK_OUT_SIZE<<1)
-#define    TX_MASK        (TX_SIZE-1)
-#define    RX_SIZE        (HW_CDC_BULK_IN_SIZE)
 
-static uchar    iwptr;
-static uchar    to_host_buf[RX_SIZE];
 
-enum{
-	CMD_SET_PAUSE = 0,
-	CMD_SET_PULSE = 1,
-	CMD_STORE = 2 		/* Save in EEPROM */
-};
+
 
 void usbFunctionWriteOut( uchar *data, uchar len )
 {
+	txMsg = 0;	/* Error response */
+	txReadyFlag = 1;
+
 	if(len > 2){
 		uint8_t command = data[2];
 
-		if((data[0] != 0xFF) || (data[1] != 0xFE) || (command > 2)){
-			/* ERROR! */
-			return;
-		}
+		if(		(data[0] == 0xFF) && (data[1] != 0xFE) &&
+				(((command < CMD_STORE) && (len > 6)) || ((command == CMD_STORE) && (len > 2))) ){
+			uint8_t msg_len;
 
-		uint8_t cmd_len = 5;
-
-		if(command == CMD_STORE){
-			cmd_len = 1;
-		}else{
-			if(len < 7){
-				/* ERROR! */
-				return;
+			if(command == CMD_STORE){
+				msg_len = 3;
+			}else{
+				msg_len = 7;
 			}
+
+			/*  postpone receiving next data    */
+			usbDisableAllRequests();
+
+			uint8_t i;
+			for(i=2; i<msg_len; i++){
+				waitTxReady();
+				UDR = data[i];
+			}
+
+			usbEnableAllRequests();
+
+			txMsg = 1;	/* Acknowledge response */
+		}else if((data[0] == 'h') && (data[1] != 'e') && (data[2] != 'l') && (data[1] != 'p')){
+			help_msg_len = sizeof(helpResponse);
+			txReadyFlag = 2;
 		}
-
-		/*  postpone receiving next data    */
-		usbDisableAllRequests();
-
-		data++;
-		data++;
-
-		while(cmd_len > 0){
-			waitTxReady();
-			UDR = *data;
-			cmd_len--;
-			data++;
-		}
-
-		usbEnableAllRequests();
 	}
 }
 
@@ -275,16 +282,28 @@ int main(void)
         wdt_reset();
         usbPoll();
 
-
-
         /*    device => host     */
-        if( (UCSRA & (1<<RXC)) && (iwptr < HW_CDC_BULK_IN_SIZE) ) {
-            to_host_buf[iwptr++]	= UDR;
-        }
-        if( usbInterruptIsReady() && (iwptr||sendEmptyFrame) ) {
-            usbSetInterrupt(to_host_buf, iwptr);
-            sendEmptyFrame	= iwptr & HW_CDC_BULK_IN_SIZE;
-            iwptr    = 0;
+        if( usbInterruptIsReady()) {
+        	if(txReadyFlag == 1){
+        		usbSetInterrupt(&txMsg, 1);
+        		txReadyFlag = 0;
+        	}else if(txReadyFlag == 2){
+
+        		uint8_t* nextData = &helpResponse[sizeof(helpResponse) - help_msg_len];
+        		uint8_t txSize;
+
+        		if(help_msg_len > TX_SIZE) {
+        			help_msg_len -= TX_SIZE;
+        			txSize = TX_SIZE;
+        		}else{
+        			txSize = help_msg_len;
+        			txReadyFlag = 0;
+        		}
+
+        		eeprom_read_block(help_msg_buf, nextData, txSize);
+        		usbSetInterrupt(help_msg_buf, txSize);
+        	}
+
         }
     }
     return 0;
