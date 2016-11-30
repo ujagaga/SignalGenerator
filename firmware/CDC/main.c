@@ -4,7 +4,7 @@
  *              for ATtiny2313
  * Author: Osamu Tamura
  * Creation Date: 2007-10-03
- * Tabsize: 4
+ * Modified by Rada Berar on 28.11.2016. for the purposes of USB Pulse Generator
  * Copyright: (c) 2007-2009 by Recursion Co., Ltd.
  * License: Proprietary, free under certain conditions. See Documentation.
  *
@@ -47,10 +47,9 @@ enum{
 	CMD_UNKNOWN
 };
 
-
-
 static uint8_t to_host_buf[TX_SIZE];
 static uint8_t txReadyFlag = 0;
+uint8_t txidx;
 
 const PROGMEM char configDescrCDC[] = {   /* USB configuration descriptor */
     9,          /* sizeof(usbDescrConfig): length of descriptor in bytes */
@@ -137,10 +136,10 @@ const PROGMEM char configDescrCDC[] = {   /* USB configuration descriptor */
     0,           /* in ms */
 };
 
-uint8_t EEMEM helpResponse[] = "\nCmds:\n"
-		"FE, FF, 00, <4 byte value>\tpause us\n"
-		"FE, FF, 01, <4 byte value>\tpulse us\n"
-		"FE, FF, 02\tsaves current setup to use at start";
+uint8_t EEMEM helpResponse[] =
+		"FE, FF, 00, <4 byte value> :pause in us\n"
+		"FE, FF, 01, <4 byte value> :pulse in us\n"
+		"FE, FF, 02 :save current setup to use at start";
 
 uchar usbFunctionDescriptor(usbRequest_t *rq)
 {
@@ -202,8 +201,11 @@ uchar usbFunctionWrite( uchar *data, uchar len )
 
 void usbFunctionWriteOut( uchar *data, uchar len )
 {
+	to_host_buf[0] = 1;	/* Acknowledge response */
+
 	if((data[0] == 'h') && (data[1] == 'e') && (data[2] == 'l') && (data[3] == 'p')){
 		txReadyFlag = 2;
+		txidx = 0;
 	}else{
 		txReadyFlag = 1;
 
@@ -212,16 +214,15 @@ void usbFunctionWriteOut( uchar *data, uchar len )
 			uint8_t msgLen = 0;
 
 			/*  postpone receiving next data    */
-			usbDisableAllRequests();
+//			usbDisableAllRequests();
 
-			to_host_buf[0] = 1;	/* Acknowledge response */
 
 			if(data[2] == CMD_STORE){
 				msgLen = 3;
 			}else if(len > 6){
 				msgLen = 7;
 			}else{
-				to_host_buf[0] = 0;	/* Acknowledge response */
+				to_host_buf[0] = 0;	/* Error response */
 			}
 
 			for(i=2; i<msgLen; i++){
@@ -229,10 +230,7 @@ void usbFunctionWriteOut( uchar *data, uchar len )
 				UDR = data[i];
 			}
 
-			usbEnableAllRequests();
-
-		}else{
-			to_host_buf[0] = 0;	/* Error response */
+//			usbEnableAllRequests();
 		}
 	}
 }
@@ -269,8 +267,6 @@ uchar		j;
 
 int main(void)
 {
-	uint8_t txidx = 0;
-
     hardwareInit();
     usbInit();
 
@@ -288,12 +284,11 @@ int main(void)
 
         		uint8_t len;
 
-        		if((sizeof(helpResponse) - 8) > txidx){
+        		if((sizeof(helpResponse) - 7) > txidx){
         			len = 7;
         		}else{
         			len = sizeof(helpResponse) - txidx;
         			txReadyFlag = 0;
-        			txidx = 0;
         		}
 
         		eeprom_read_block(to_host_buf, &helpResponse[txidx], len);
