@@ -43,14 +43,13 @@ enum {
 enum{
 	CMD_SET_PAUSE = 0,
 	CMD_SET_PULSE = 1,
-	CMD_STORE = 2 		/* Save in EEPROM */
+	CMD_STORE = 2, 		/* Save in EEPROM */
+	CMD_UNKNOWN
 };
 
 
 
-static uint8_t help_msg_buf[TX_SIZE];
-static uint8_t help_msg_len;
-static uint8_t txMsg;
+static uint8_t to_host_buf[TX_SIZE];
 static uint8_t txReadyFlag = 0;
 
 const PROGMEM char configDescrCDC[] = {   /* USB configuration descriptor */
@@ -138,10 +137,10 @@ const PROGMEM char configDescrCDC[] = {   /* USB configuration descriptor */
     0,           /* in ms */
 };
 
-const uint8_t EEMEM helpResponse[] = "help\tthis dialog\n"
-		"FE, FF, 00, <4 byte value>\tpause ms\n"
-		"FE, FF, 01, <4 byte value>\tpulse ms\n"
-		"FE, FF, 02\tstores current settings";
+uint8_t EEMEM helpResponse[] = "\nCmds:\n"
+		"FE, FF, 00, <4 byte value>\tpause us\n"
+		"FE, FF, 01, <4 byte value>\tpulse us\n"
+		"FE, FF, 02\tsaves current setup to use at start";
 
 uchar usbFunctionDescriptor(usbRequest_t *rq)
 {
@@ -163,7 +162,7 @@ static uchar    modeBuffer[7];
 
 uchar usbFunctionSetup(uchar data[8])
 {
-usbRequest_t    *rq = (void *)data;
+	usbRequest_t    *rq = (void *)data;
 
     if((rq->bmRequestType & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS){    /* class request type */
 
@@ -192,12 +191,6 @@ uchar usbFunctionRead( uchar *data, uchar len )
 
 uchar usbFunctionWrite( uchar *data, uchar len )
 {
-	// lets set the baud rate
-	UBRRL = (unsigned char)BAUD_PRESCALE;
-	UBRRH = (BAUD_PRESCALE >> 8);
-    UCSRA   = (1<<U2X);
-    UCSRB	= (1<<RXEN) | (1<<TXEN);
-
     memcpy( modeBuffer, data, 7 );
     return 1;
 }
@@ -207,43 +200,39 @@ uchar usbFunctionWrite( uchar *data, uchar len )
 /*---------------------------------------------------------------------------*/
 
 
-
-
-
-
 void usbFunctionWriteOut( uchar *data, uchar len )
 {
-	txMsg = 0;	/* Error response */
-	txReadyFlag = 1;
+	if((data[0] == 'h') && (data[1] == 'e') && (data[2] == 'l') && (data[3] == 'p')){
+		txReadyFlag = 2;
+	}else{
+		txReadyFlag = 1;
 
-	if(len > 2){
-		uint8_t command = data[2];
-
-		if(		(data[0] == 0xFF) && (data[1] != 0xFE) &&
-				(((command < CMD_STORE) && (len > 6)) || ((command == CMD_STORE) && (len > 2))) ){
-			uint8_t msg_len;
-
-			if(command == CMD_STORE){
-				msg_len = 3;
-			}else{
-				msg_len = 7;
-			}
+		if((data[0] == 0xFE) && (data[1] == 0xFF) && (data[2] < CMD_UNKNOWN)){
+			uint8_t i;
+			uint8_t msgLen = 0;
 
 			/*  postpone receiving next data    */
 			usbDisableAllRequests();
 
-			uint8_t i;
-			for(i=2; i<msg_len; i++){
+			to_host_buf[0] = 1;	/* Acknowledge response */
+
+			if(data[2] == CMD_STORE){
+				msgLen = 3;
+			}else if(len > 6){
+				msgLen = 7;
+			}else{
+				to_host_buf[0] = 0;	/* Acknowledge response */
+			}
+
+			for(i=2; i<msgLen; i++){
 				waitTxReady();
 				UDR = data[i];
 			}
 
 			usbEnableAllRequests();
 
-			txMsg = 1;	/* Acknowledge response */
-		}else if((data[0] == 'h') && (data[1] != 'e') && (data[2] != 'l') && (data[1] != 'p')){
-			help_msg_len = sizeof(helpResponse);
-			txReadyFlag = 2;
+		}else{
+			to_host_buf[0] = 0;	/* Error response */
 		}
 	}
 }
@@ -269,11 +258,19 @@ uchar		j;
     USBDDR    = 0;      /*  remove USB reset condition */
 
 	PORTB	= 0xff;
+
+	UBRRL = (unsigned char)BAUD_PRESCALE;
+	UBRRH = (BAUD_PRESCALE >> 8);
+//	UCSRA   = (1<<U2X);
+	UCSRB	= (1<<TXEN);
+
 }
 
 
 int main(void)
 {
+	uint8_t txidx = 0;
+
     hardwareInit();
     usbInit();
 
@@ -285,25 +282,25 @@ int main(void)
         /*    device => host     */
         if( usbInterruptIsReady()) {
         	if(txReadyFlag == 1){
-        		usbSetInterrupt(&txMsg, 1);
+        		usbSetInterrupt(to_host_buf, 1);
         		txReadyFlag = 0;
         	}else if(txReadyFlag == 2){
 
-        		uint8_t* nextData = &helpResponse[sizeof(helpResponse) - help_msg_len];
-        		uint8_t txSize;
+        		uint8_t len;
 
-        		if(help_msg_len > TX_SIZE) {
-        			help_msg_len -= TX_SIZE;
-        			txSize = TX_SIZE;
+        		if((sizeof(helpResponse) - 8) > txidx){
+        			len = 7;
         		}else{
-        			txSize = help_msg_len;
+        			len = sizeof(helpResponse) - txidx;
         			txReadyFlag = 0;
+        			txidx = 0;
         		}
 
-        		eeprom_read_block(help_msg_buf, nextData, txSize);
-        		usbSetInterrupt(help_msg_buf, txSize);
-        	}
+        		eeprom_read_block(to_host_buf, &helpResponse[txidx], len);
+        		usbSetInterrupt(to_host_buf, len);
 
+        		txidx += len;
+        	}
         }
     }
     return 0;
