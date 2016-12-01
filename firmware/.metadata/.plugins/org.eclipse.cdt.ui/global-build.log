@@ -1,4 +1,4 @@
-15:36:38 **** Incremental Build of configuration Release for project generator ****
+18:06:54 **** Incremental Build of configuration Release for project generator ****
 make all 
 Building file: ../main.c
 Invoking: AVR Compiler
@@ -28,13 +28,13 @@ AVR Memory Usage
 ----------------
 Device: attiny2313
 
-Program:     912 bytes (44.5% Full)
+Program:    2038 bytes (99.5% Full)
 (.text + .data + .bootloader)
 
 Data:         20 bytes (15.6% Full)
 (.data + .bss + .noinit)
 
-EEPROM:        8 bytes (6.3% Full)
+EEPROM:        8 bytes (6.2% Full)
 (.eeprom)
 
 

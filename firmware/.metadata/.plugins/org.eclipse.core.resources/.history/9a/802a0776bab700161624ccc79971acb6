@@ -1,0 +1,247 @@
+
+/* Name: main.c
+ * Project: AVR Pulse Generator
+ *              for ATtiny2313
+ * Author: Rada Berar
+ * Creation Date: 30.11.2016.
+ *
+ * commands:
+ * 00 <4 byte duration in 0,1us>	set pause length
+ * 01 <4 byte duration in 0,1us>	set pulse length
+ * 02								store settings to EEPROM and use at next startup
+ *
+ */
+
+#include <string.h>
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <avr/pgmspace.h>
+#include <avr/wdt.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <avr/eeprom.h>
+#include <util/delay.h>
+
+#define TMR0_MAX_COUNT		(250)
+#define MIN_COUNT_MODE_LEN	(50)
+
+#define USART_BAUDRATE 	(9600)
+#define BAUD_PRESCALE 	(((( F_CPU / 16) + ( USART_BAUDRATE / 2) ) / ( USART_BAUDRATE ) ) - 1)
+#define waitTxReady()	while (( UCSRA & (1 << UDRE ) ) == 0)
+#define RX_SIZE 		(6)
+
+#define CMD_SET_LEN		(5)
+#define CMD_STORE_LEN	(1)
+#define MAX_LEN			(0xFFFF >> 2)
+
+#define OUT_SET()		do{ PORTB = 0xFF; }while(0)
+#define OUT_CLR()		do{ PORTB = 0; }while(0)
+
+#define startTmr0()		do{ TCCR0B = (1 << CS00); }while(0)
+#define stopTmr0()		do{ TCCR0B = 0; }while(0)
+#define startTmr1()		do{ TCCR1B |= (1 << CS10); }while(0)
+#define stopTmr1()		do{ TCCR1B = 0; }while(0)
+
+enum{
+	CMD_SET_PAUSE = 0,
+	CMD_SET_PULSE = 1,
+	CMD_STORE = 2, 		/* Save in EEPROM */
+	CMD_UNKNOWN
+};
+
+
+uint32_t EEMEM storePauseLen = 1;
+uint32_t EEMEM storePulseLen = 1;
+
+volatile uint8_t rx_buf[RX_SIZE];
+volatile uint8_t rx_index;
+volatile uint32_t pauseLen;	/* pause duration in us */
+volatile uint32_t pulseLen; /* pulse duration in us */
+volatile bool modeChanged = false;
+volatile uint32_t tmr0CycleCount;
+
+
+static void check_command( void ){
+
+	uint8_t command = rx_buf[0];
+
+	if((rx_index == CMD_STORE_LEN) && (command == CMD_STORE)){
+
+		eeprom_write_dword(&storePauseLen, pauseLen);
+		eeprom_write_dword(&storePulseLen, pulseLen);
+		rx_index = 0;
+
+	}else if(rx_index == CMD_SET_LEN){
+
+		uint32_t value = ((uint32_t)rx_buf[1] << 24) | ((uint32_t)rx_buf[2] << 16) | ((uint32_t)rx_buf[3] << 8) | rx_buf[4];
+		if(value > MAX_LEN){
+			value = MAX_LEN;
+		}
+
+		value <<= 2;
+
+		if(command == CMD_SET_PAUSE){
+			pauseLen = value;
+			modeChanged = true;
+		}else if(command == CMD_SET_PULSE){
+			pulseLen = value;
+			modeChanged = true;
+		}
+
+		rx_index = 0;
+	}
+}
+
+
+ISR(USART_RX_vect) {
+
+	rx_buf[rx_index] = UDR;
+
+	if(rx_index < RX_SIZE){
+		rx_index++;
+	}
+
+	check_command();
+}
+
+
+static void init(void)
+{
+	ACSR |= 1 << ACD; /* Disable analog comparer to reduce power consumption */
+
+	DDRB = 0xff;
+	PORTB = 0;
+
+	/* UART init */
+	// set the baud rate
+	UBRRL = (unsigned char)BAUD_PRESCALE;
+	UBRRH = (BAUD_PRESCALE >> 8);
+	// enable rx
+	UCSRB = (1<<RXEN);
+	//  enable RX interrupt
+	UCSRB |= (1 << RXCIE);
+
+	rx_index = 0;
+	pauseLen = eeprom_read_dword(&storePauseLen);
+	pulseLen = eeprom_read_dword(&storePulseLen);
+
+	if(pauseLen == 0xFFFFFFFF){
+		pauseLen = 4;
+	}
+
+	if(pulseLen == 0xFFFFFFFF){
+		pulseLen = 4;
+	}
+
+	sei();
+}
+
+ISR (TIMER1_COMPA_vect)
+{
+//	OUT_CLR();
+	PINB = 0xFF;
+}
+
+void doPWM( void ){
+
+	OCR1A = 20;
+//	OCR1A = (uint16_t)(pauseLen + pulseLen - 1);	// number to count up to.
+	TCCR1A = 0;
+	TCCR1B = (1 << WGM12);							// CTC mode
+	TIMSK |= (1 << OCIE1A);							// Set interrupt on compare match
+	TCNT1 = 0;
+
+	uint16_t setValue = pauseLen - 1;
+
+	modeChanged = false;
+
+	startTmr1();
+
+	while(1);
+
+	while(!modeChanged){
+		while(TCNT1 < setValue);
+		OUT_SET();
+	}
+
+	stopTmr1();
+}
+
+ISR (TIMER0_COMPA_vect)
+{
+	tmr0CycleCount++;
+}
+
+#define PAUSE_CORRECT	(26)
+#define PULSE_CORRECT	(48)
+
+
+void doCounting( void ){
+	OCR0A  = TMR0_MAX_COUNT - 1;      			// number to count up to.
+	TCCR0A = (1 << WGM01); 		// CTC mode
+	TCNT0 = 0;
+	TIMSK |= (1 << OCIE0A);		// Set interrupt on compare match
+
+
+	uint32_t tmrLowCycleCount = pauseLen / TMR0_MAX_COUNT;
+	uint8_t tmrLowRemanant = (pauseLen % TMR0_MAX_COUNT);
+	uint32_t tmrTotalCycleCount = (pauseLen + pulseLen) / TMR0_MAX_COUNT;
+	uint8_t tmrTotalRemanant = (pauseLen + pulseLen) % TMR0_MAX_COUNT;
+
+	/* Make corrections to account for flow controll */
+	if(tmrLowRemanant > PAUSE_CORRECT){
+		tmrLowRemanant -= PAUSE_CORRECT;
+	}else{
+		if(tmrLowCycleCount > 0){
+			tmrLowCycleCount --;
+			tmrLowRemanant = TMR0_MAX_COUNT - 1 + tmrLowRemanant - PAUSE_CORRECT;
+		}
+	}
+
+	/* Make corrections to account for flow controll */
+	if(tmrTotalRemanant > PULSE_CORRECT){
+		tmrTotalRemanant -= PULSE_CORRECT;
+	}else{
+		if(tmrTotalCycleCount > 0){
+			tmrTotalCycleCount --;
+			tmrTotalRemanant = TMR0_MAX_COUNT - 1 + tmrTotalRemanant - PULSE_CORRECT;
+		}
+	}
+
+	modeChanged = false;
+
+	startTmr0();
+
+	while(!modeChanged){
+		while(tmr0CycleCount < tmrLowCycleCount);
+		while(TCNT0 < tmrLowRemanant);
+		OUT_SET();
+		while(tmr0CycleCount < tmrTotalCycleCount);
+		while(TCNT0 < tmrTotalRemanant);
+		OUT_CLR();
+		TCNT0 = 0;
+		tmr0CycleCount = 0;
+	}
+
+	stopTmr0();
+}
+
+
+int main(void)
+{
+	init();
+
+	while(1){doPWM();}
+
+    for(;;){    /* main event loop */
+    	if((pauseLen < 0xFFFF) && (pulseLen < 0xFFFF) && ((pauseLen + pulseLen) < 0xFFFF)){
+    		/* PWM mode */
+    		doPWM();
+    	}else{
+    		/* count mode */
+    		doCounting();
+    	}
+    }
+    return 0;
+}
+
