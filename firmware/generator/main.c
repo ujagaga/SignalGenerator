@@ -33,17 +33,16 @@
 #define RX_SIZE 		(6)
 #define CMD_SET_LEN		(5)
 #define CMD_STORE_LEN	(1)
-#define MAX_LEN			(0xFFFF >> 2)
-#define SHORT_TIME_CORRECT	(2)
-#define LONG_PAUSE_CORRECT	(26)
-#define LONG_PULSE_CORRECT	(48)
+#define MAX_LEN			(0xFFFFFFFF >> 2)
 
 #define OUT_SET()		do{ PORTB = 0xFF; }while(0)
 #define OUT_CLR()		do{ PORTB = 0; }while(0)
 #define OUT_TGL()		do{ PINB = 0xFF; }while(0)
 
-#define START_TMR()		do{TCCR0B = (1 << CS00);}while(0) /* Start timer0 with no prescaller */
-#define STOP_TMR()		do{TCCR0B = 0;}while(0)
+#define TMR_START()	do{ TCCR0B = (1 << CS00); }while(0) /* Start timer0 with no prescaller */
+#define TMR_STOP()		do{ TCCR0B = 0; }while(0)
+#define TMR_SET_INT()	do{ TIMSK |= (1 << OCIE0A); }while(0)
+#define TMR_CLR_INT()	do{ TIMSK &= ~(1 << OCIE0A); }while(0)
 
 enum{
 	CMD_SET_PAUSE = 0,
@@ -53,14 +52,14 @@ enum{
 };
 
 
-uint32_t EEMEM storePauseLen = 1;
-uint32_t EEMEM storePulseLen = 1;
+uint32_t EEMEM storePauseLen;
+uint32_t EEMEM storePulseLen;
 
 volatile uint8_t rx_buf[RX_SIZE];
 volatile uint8_t rx_index;
 volatile uint32_t pauseLen;	/* pause duration in us */
 volatile uint32_t pulseLen; /* pulse duration in us */
-volatile bool modeChanged = false;
+volatile bool modeContinueFlag;
 volatile uint32_t tmr0CycleCount;
 
 
@@ -68,7 +67,10 @@ static void check_command( void ){
 
 	uint8_t command = rx_buf[0];
 
-	if((rx_index == CMD_STORE_LEN) && (command == CMD_STORE)){
+	if(command >= CMD_UNKNOWN){
+		rx_index = 0;
+	}else
+		if((rx_index == CMD_STORE_LEN) && (command == CMD_STORE)){
 
 		eeprom_write_dword(&storePauseLen, pauseLen);
 		eeprom_write_dword(&storePulseLen, pulseLen);
@@ -76,17 +78,19 @@ static void check_command( void ){
 
 	}else if(rx_index == CMD_SET_LEN){
 
-		uint32_t value = ((uint32_t)rx_buf[1] << 24) | ((uint32_t)rx_buf[2] << 16) | ((uint32_t)rx_buf[3] << 8) | rx_buf[4];
+		uint32_t value = ((uint32_t)rx_buf[1] << 24) + ((uint32_t)rx_buf[2] << 16) + ((uint32_t)rx_buf[3] << 8) + rx_buf[4];
 		if(value > MAX_LEN){
 			value = MAX_LEN;
 		}
 
 		if(command == CMD_SET_PAUSE){
 			pauseLen = value;
-			modeChanged = true;
+			modeContinueFlag = false;
+			tmr0CycleCount = 0xFFFFFFFE;
 		}else if(command == CMD_SET_PULSE){
 			pulseLen = value;
-			modeChanged = true;
+			modeContinueFlag = false;
+			tmr0CycleCount = 0xFFFFFFFE;
 		}
 
 		rx_index = 0;
@@ -122,330 +126,133 @@ static void init(void)
 	//  enable RX interrupt
 	UCSRB |= (1 << RXCIE);
 
-
 	rx_index = 0;
+
 	pauseLen = eeprom_read_dword(&storePauseLen);
 	pulseLen = eeprom_read_dword(&storePulseLen);
 
-	if(pauseLen == 0xFFFFFFFF){
-		pauseLen = 10;
-	}
-
-	if(pulseLen == 0xFFFFFFFF){
-		pulseLen = 10;
-	}
 
 	sei();
 }
 
-void TGL_01us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-		OUT_TGL();
-	}
-}
+#define TGL_01us()		while(modeContinueFlag){		\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
+			OUT_TGL(); OUT_TGL(); OUT_TGL();	}
 
-void TGL_02us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-		nop();
-		OUT_TGL();
-	}
-}
+#define TGL_02us()		while(modeContinueFlag){			\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	nop();	OUT_TGL(); nop();	\
+			OUT_TGL();	}
 
-void TGL_03us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		OUT_TGL();
-	}
-}
+#define TGL_04us()		while(modeContinueFlag){			\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	nop();	nop();	nop();		\
+			OUT_TGL();	}
 
-void TGL_04us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
+#define TGL_06us()		while(modeContinueFlag){					\
+			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
+			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
+			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
+			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
+			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
+			OUT_TGL();}
 
+#define TGL_08us()		while(modeContinueFlag){ OUT_TGL(); nop();	}
 
-	}
-}
+#define TGL_1us()		while(modeContinueFlag){	\
+			OUT_TGL(); nop(); nop(); nop();	}
 
-void TGL_05us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-	}
-}
+#define TGL_12us()		while(modeContinueFlag){		\
+			OUT_TGL(); nop(); nop();			\
+			nop(); nop(); nop(); }
 
-void TGL_06us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		OUT_TGL();
+#define TGL_14us()		while(modeContinueFlag){		\
+			OUT_TGL(); nop(); nop();			\
+			nop(); nop(); nop(); nop();	nop();}
 
-	}
-}
+#define TGL_16us()		while(modeContinueFlag){		\
+			OUT_TGL(); nop(); nop(); nop();		\
+			nop(); nop(); nop(); nop(); nop(); nop();}
 
-void TGL_07us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-	}
-}
+#define TGL_18us()		while(modeContinueFlag){		\
+			OUT_TGL(); nop(); nop(); nop();		\
+			nop(); nop(); nop(); nop();	nop();	\
+			nop(); nop(); nop();	}
 
-void TGL_08us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-	}
-}
-
-void TGL_09us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-	}
-}
-
-void TGL_1us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-	}
-}
-
-void TGL_12us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-	}
-}
-
-
-void TGL_14us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-	}
-}
-
-
-void TGL_16us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-	}
-}
-
-
-void TGL_18us( void ){
-	while(!modeChanged){
-		OUT_TGL();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-		nop();
-	}
-}
-
+#define TGL_20us()		while(modeContinueFlag){		\
+			OUT_TGL(); nop(); nop(); nop();		\
+			nop(); nop(); nop(); nop();	nop();	\
+			nop(); nop(); nop(); nop();	nop(); }
 
 void doToggle( void ){
+	TMR_STOP();
 
-	modeChanged = false;
+	modeContinueFlag = true;
 
-	uint8_t period = pauseLen + pulseLen;
+	uint8_t period = (uint8_t)(pauseLen + pulseLen)>>1;
 
 	switch(period){
-	case 1:
+	case 0:
 		TGL_01us();
 		break;
-	case 2:
+	case 1:
 		TGL_02us();
 		break;
-	case 3:
-		TGL_03us();
-		break;
-	case 4:
+	case 2:
 		TGL_04us();
 		break;
-	case 5:
-		TGL_05us();
-		break;
-	case 6:
+	case 3:
 		TGL_06us();
 		break;
-	case 7:
-		TGL_07us();
-		break;
-	case 8:
+	case 4:
 		TGL_08us();
 		break;
-	case 9:
-		TGL_09us();
-		break;
-	case 10:
+	case 5:
 		TGL_1us();
 		break;
-	case 11:
-	case 12:
+	case 6:
 		TGL_12us();
 		break;
-	case 13:
-	case 14:
-		TGL_14us();
-		break;
-	case 15:
-	case 16:
-		TGL_16us();
-		break;
 	default:
-		TGL_18us();
-		break;
+		TGL_14us();
 		break;
 	}
 
@@ -461,54 +268,85 @@ ISR (TIMER0_COMPA_vect)
 void doCounting( void ){
 	OCR0A  = TMR0_MAX_COUNT - 1;// number to count up to.
 	TCCR0A = (1 << WGM01); 		// CTC mode
-	TIMSK |= (1 << OCIE0A);		// Set interrupt on compare match
 
-
-	uint32_t tmrLowCycleCount = pauseLen / TMR0_MAX_COUNT;
-	uint32_t tmrTotalCycleCount = (pauseLen + pulseLen) / TMR0_MAX_COUNT;
-	uint8_t tmrLowRemanant = (pauseLen % TMR0_MAX_COUNT);
-	uint8_t tmrTotalRemanant = (pauseLen + pulseLen) % TMR0_MAX_COUNT;
-
-	/* Make corrections to account for flow controll */
-	if(tmrLowRemanant > LONG_PAUSE_CORRECT){
-		tmrLowRemanant -= LONG_PAUSE_CORRECT;
-	}else{
-		if(tmrLowCycleCount > 0){
-			tmrLowCycleCount --;
-			tmrLowRemanant = TMR0_MAX_COUNT - 1 + tmrLowRemanant - LONG_PAUSE_CORRECT;
-		}
-	}
-
-	/* Make corrections to account for flow controll */
-	if(tmrTotalRemanant > LONG_PULSE_CORRECT){
-		tmrTotalRemanant -= LONG_PULSE_CORRECT;
-	}else{
-		if(tmrTotalCycleCount > 0){
-			tmrTotalCycleCount --;
-			tmrTotalRemanant = TMR0_MAX_COUNT - 1 + tmrTotalRemanant - LONG_PULSE_CORRECT;
-		}
-	}
-
-	modeChanged = false;
-
-	TCNT0 = 0;
+	modeContinueFlag = true;
+	TMR_SET_INT();
 	tmr0CycleCount = 0;
 
-	START_TMR();
+	uint32_t tempPauseLen = pauseLen * 2;
+	uint32_t tempPulseLen = pulseLen * 2;
+	uint32_t tmrLowCycleCount, tmrHighCycleCount;
 
-	while(!modeChanged){
-		while(tmr0CycleCount < tmrLowCycleCount);
-		while(TCNT0 < tmrLowRemanant);
-		OUT_SET();
-		while(tmr0CycleCount < tmrTotalCycleCount);
-		while(TCNT0 < tmrTotalRemanant);
-		OUT_CLR();
-		TCNT0 = 0;
-		tmr0CycleCount = 0;
+	tmrLowCycleCount = tempPauseLen / (uint32_t)TMR0_MAX_COUNT;
+	tmrHighCycleCount = tempPulseLen / (uint32_t)TMR0_MAX_COUNT;
+
+	TMR_START();
+	if((tmrLowCycleCount == 0) && (tmrHighCycleCount == 0)){
+
+		if(tempPauseLen > 16){
+			tempPauseLen -= 16;
+		}
+
+		if(tempPulseLen > 12){
+			tempPulseLen -= 12;
+		}
+
+		TMR_CLR_INT();
+
+		while(modeContinueFlag){
+			while(TCNT0 < tempPauseLen);
+			OUT_SET();
+			TCNT0 = 0;
+			while(TCNT0 < tempPulseLen);
+			OUT_CLR();
+			TCNT0 = 0;
+		}
+
+	}else if(tmrLowCycleCount == 0){
+		uint8_t tmrHighRemanant = (uint8_t)(tempPulseLen % TMR0_MAX_COUNT);
+
+		while(modeContinueFlag){
+			while(TCNT0 < tempPauseLen);
+			OUT_SET();
+			TCNT0 = 0;
+			tmr0CycleCount = 0;
+			while(tmr0CycleCount < tmrHighCycleCount);
+			while(TCNT0 < tmrHighRemanant);
+			OUT_CLR();
+			TCNT0 = 0;
+		}
+	}else if(tmrHighCycleCount == 0){
+		uint8_t tmrLowRemanant = (uint8_t)(tempPauseLen % TMR0_MAX_COUNT);
+
+		while(modeContinueFlag){
+			while(TCNT0 < tempPulseLen);
+			OUT_CLR();
+			TCNT0 = 0;
+			tmr0CycleCount = 0;
+			while(tmr0CycleCount < tmrLowCycleCount);
+			while(TCNT0 < tmrLowRemanant);
+			OUT_SET();
+			TCNT0 = 0;
+		}
+	}else{
+		uint8_t tmrLowRemanant = (uint8_t)(tempPauseLen % TMR0_MAX_COUNT);
+		uint8_t tmrHighRemanant = (uint8_t)(tempPulseLen % TMR0_MAX_COUNT);
+
+		while(modeContinueFlag){
+			while(tmr0CycleCount < tmrLowCycleCount);
+			while(TCNT0 < tmrLowRemanant);
+			OUT_SET();
+			TCNT0 = 0;
+			tmr0CycleCount = 0;
+			while(tmr0CycleCount < tmrHighCycleCount);
+			while(TCNT0 < tmrHighRemanant);
+			OUT_CLR();
+			TCNT0 = 0;
+			tmr0CycleCount = 0;
+		}
 	}
 
-	STOP_TMR();
-
+	TMR_STOP();
 
 }
 
@@ -518,7 +356,7 @@ int main(void)
 	init();
 
     for(;;){    /* main event loop */
-    	if((pauseLen < 19) && (pulseLen < 19) && ((pauseLen + pulseLen) < 19)){
+    	if((pauseLen < 15) && (pulseLen < 15) && ((pauseLen + pulseLen) < 15)){
     		/* PWM mode */
     		doToggle();
     	}else{

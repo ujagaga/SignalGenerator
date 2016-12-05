@@ -1,4 +1,4 @@
-15:55:58 **** Build of configuration Release for project CDC ****
+11:34:08 **** Build of configuration Release for project CDC ****
 make all 
 Invoking: Print Size
 avr-size --format=avr --mcu=attiny2313 CDC.elf
@@ -12,12 +12,12 @@ Program:    2044 bytes (99.8% Full)
 Data:         86 bytes (67.2% Full)
 (.data + .bss + .noinit)
 
-EEPROM:      127 bytes (99.2% Full)
+EEPROM:      121 bytes (94.5% Full)
 (.eeprom)
 
 
 Finished building: sizedummy
  
 
-15:55:59 Build Finished (took 111ms)
+11:34:08 Build Finished (took 81ms)
 

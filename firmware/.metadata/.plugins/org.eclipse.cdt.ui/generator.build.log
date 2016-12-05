@@ -1,34 +1,12 @@
-18:06:54 **** Incremental Build of configuration Release for project generator ****
+12:32:28 **** Incremental Build of configuration Release for project generator ****
 make all 
-Building file: ../main.c
-Invoking: AVR Compiler
-avr-gcc -Wall -Os -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=attiny2313 -DF_CPU=20000000UL -MMD -MP -MF"main.d" -MT"main.o" -c -o "main.o" "../main.c"
-Finished building: ../main.c
- 
-Building target: generator.elf
-Invoking: AVR C Linker
-avr-gcc -Wl,-Map,generator.map -mmcu=attiny2313 -o "generator.elf"  ./main.o   
-Finished building target: generator.elf
- 
-Invoking: AVR Create Extended Listing
-avr-objdump -h -S generator.elf  >"generator.lss"
-Finished building: generator.lss
- 
-Create Flash image (ihex format)
-avr-objcopy -R .eeprom -R .fuse -R .lock -R .signature -O ihex generator.elf  "generator.hex"
-Finished building: generator.hex
- 
-Create eeprom image (ihex format)
-avr-objcopy -j .eeprom --no-change-warnings --change-section-lma .eeprom=0 -O ihex generator.elf  "generator.eep"
-Finished building: generator.eep
- 
 Invoking: Print Size
 avr-size --format=avr --mcu=attiny2313 generator.elf
 AVR Memory Usage
 ----------------
 Device: attiny2313
 
-Program:    2038 bytes (99.5% Full)
+Program:    2048 bytes (100.0% Full)
 (.text + .data + .bootloader)
 
 Data:         20 bytes (15.6% Full)
@@ -41,5 +19,5 @@ EEPROM:        8 bytes (6.2% Full)
 Finished building: sizedummy
  
 
-18:06:54 Build Finished (took 199ms)
+12:32:28 Build Finished (took 78ms)
 

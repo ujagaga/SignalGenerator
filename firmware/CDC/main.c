@@ -137,9 +137,9 @@ const PROGMEM char configDescrCDC[] = {   /* USB configuration descriptor */
 };
 
 uint8_t EEMEM helpResponse[] =
-		"FE, FF, 00, <4 byte value> :pause in us\n"
-		"FE, FF, 01, <4 byte value> :pulse in us\n"
-		"FE, FF, 02 :save current setup to use at start";
+		"FE, FF, 00, <4 byte value> :pause \n"
+		"FE, FF, 01, <4 byte value> :pulse \n"
+		"FE, FF, 02 :save current setup\nUnits are in 0,1us.";
 
 uchar usbFunctionDescriptor(usbRequest_t *rq)
 {
