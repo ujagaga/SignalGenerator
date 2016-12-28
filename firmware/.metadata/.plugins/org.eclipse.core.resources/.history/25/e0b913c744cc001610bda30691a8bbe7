@@ -72,8 +72,8 @@ static void check_command( void ){
 	}else
 		if((rx_index == CMD_STORE_LEN) && (command == CMD_STORE)){
 
-		eeprom_update_dword(&storePauseLen, pauseLen);
-		eeprom_update_dword(&storePulseLen, pulseLen);
+		eeprom_write_dword(&storePauseLen, pauseLen);
+		eeprom_write_dword(&storePulseLen, pulseLen);
 		rx_index = 0;
 
 	}else if(rx_index == CMD_SET_LEN){

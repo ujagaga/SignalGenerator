@@ -171,7 +171,6 @@ static void init(void)
 			OUT_TGL();	nop();	OUT_TGL(); nop();	\
 			OUT_TGL();	nop();	OUT_TGL(); nop();	\
 			OUT_TGL();	nop();	OUT_TGL(); nop();	\
-			OUT_TGL();	nop();	OUT_TGL(); nop();	\
 			OUT_TGL();	}
 
 #define TGL_04us()		while(modeContinueFlag){			\

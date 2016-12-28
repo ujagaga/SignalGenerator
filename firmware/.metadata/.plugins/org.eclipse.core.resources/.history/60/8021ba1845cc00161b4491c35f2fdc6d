@@ -154,13 +154,9 @@ static void init(void)
 			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
 			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
 			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
-			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
-			OUT_TGL(); OUT_TGL(); OUT_TGL();	\
 			OUT_TGL(); OUT_TGL(); OUT_TGL();	}
 
 #define TGL_02us()		while(modeContinueFlag){			\
-			OUT_TGL();	nop();	OUT_TGL(); nop();	\
-			OUT_TGL();	nop();	OUT_TGL(); nop();	\
 			OUT_TGL();	nop();	OUT_TGL(); nop();	\
 			OUT_TGL();	nop();	OUT_TGL(); nop();	\
 			OUT_TGL();	nop();	OUT_TGL(); nop();	\
@@ -183,12 +179,9 @@ static void init(void)
 			OUT_TGL();	nop();	nop();	nop();		\
 			OUT_TGL();	nop();	nop();	nop();		\
 			OUT_TGL();	nop();	nop();	nop();		\
-			OUT_TGL();	nop();	nop();	nop();		\
-			OUT_TGL();	nop();	nop();	nop();		\
 			OUT_TGL();	}
 
 #define TGL_06us()		while(modeContinueFlag){					\
-			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
 			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
 			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
 			OUT_TGL(); nop(); nop(); nop();	nop();	nop();	\
